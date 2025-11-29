@@ -34,12 +34,10 @@ const CalendarMonth: React.FC<{ date: Date, dailyPnlMap: Record<string, number>,
     const colorDown = isReverse ? 'text-success' : 'text-danger';
     const bgUp = isReverse ? 'bg-red-500/10 border-red-500/30' : 'bg-emerald-500/10 border-emerald-500/30';
     const bgDown = isReverse ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30';
-    // Req #1: Style for Zero PnL days
     const bgZero = 'bg-slate-500/10 border-slate-500/10 text-slate-400'; 
 
     return (
         <div className="bg-surface rounded-xl border border-slate-700 p-4 shadow-lg flex-1 min-w-[300px]">
-            {/* 优化: 移除月份切换按钮，实现多月视图 */}
             <div className="text-center text-lg font-bold mb-4">
                 {date.toLocaleDateString(undefined, {year: 'numeric', month: 'long'})}
             </div>
@@ -79,17 +77,16 @@ const CalendarMonth: React.FC<{ date: Date, dailyPnlMap: Record<string, number>,
 
 const HistoryAnalysis: React.FC<HistoryProps> = ({ service, t, colorMode = 'standard' }) => {
   const [history, setHistory] = useState<TradeHistoryItem[]>([]);
-  // 移除 calendarDate 状态，直接计算当前月和前两个月
-  const isReverse = colorMode === 'reverse';
 
   useEffect(() => {
     service.getTradeHistory().then(setHistory);
   }, [service]);
 
-  // Fix NaN: Safe Parse Logic & Total PnL Calculation
+  // Fix NaN: Safe Parse Logic & Total Pnl Calculation
   const totalPnl = useMemo(() => {
     return history.reduce((acc, curr) => {
         const val = parseFloat(curr.pnl);
+        // Req #1: Fix NaN issue by treating invalid/null values as 0
         return acc + (isNaN(val) ? 0 : val);
     }, 0);
   }, [history]);
@@ -120,13 +117,14 @@ const HistoryAnalysis: React.FC<HistoryProps> = ({ service, t, colorMode = 'stan
     return map;
   }, [history]);
   
-  // Req #1: 获取最近三个月的 Date 对象
+  // Req #1: Generate fixed 3-month view dates
   const currentDate = new Date();
   const month1 = new Date(currentDate.getFullYear(), currentDate.getMonth() - 2, 1);
   const month2 = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
   const month3 = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
 
 
+  const isReverse = colorMode === 'reverse';
   const colorUp = isReverse ? 'text-danger' : 'text-success';
   const colorDown = isReverse ? 'text-success' : 'text-danger';
 
@@ -166,7 +164,8 @@ const HistoryAnalysis: React.FC<HistoryProps> = ({ service, t, colorMode = 'stan
          <div className="flex items-center gap-2 font-semibold text-lg mb-6">
              <CalendarIcon size={18} className="text-primary"/> PnL Calendar (Last 3 Months)
          </div>
-         <div className="flex flex-col gap-6 lg:flex-row lg:gap-4 overflow-x-auto pb-4 lg:pb-0 custom-scrollbar">
+         {/* 优化: 使用 overflow-x-auto 和 flex-shrink-0 确保三个月在小屏上并排显示，符合移动端设计 */}
+         <div className="flex gap-6 lg:flex-row overflow-x-auto pb-4 lg:pb-0 custom-scrollbar">
             <CalendarMonth date={month1} dailyPnlMap={dailyPnlMap} t={t} isReverse={isReverse} />
             <CalendarMonth date={month2} dailyPnlMap={dailyPnlMap} t={t} isReverse={isReverse} />
             <CalendarMonth date={month3} dailyPnlMap={dailyPnlMap} t={t} isReverse={isReverse} />

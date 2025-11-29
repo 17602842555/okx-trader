@@ -128,7 +128,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
         }
 
         await service.amendOrder(req);
-        onAction?.(`${t.orderModified} ${newPx}`, 'success');
+        onAction?.(, 'success');
     } catch (e: any) {
          onAction?.(e.message || t.modifyFailed, 'error');
     }
@@ -153,7 +153,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
             sz: pos.pos 
         });
         
-        onAction?.(`${t.addedAlgo} ${type.toUpperCase()} @ ${priceVal}`, 'success');
+        onAction?.(, 'success');
       } catch(e:any) {
           onAction?.(e.message, 'error');
       }
@@ -241,7 +241,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
         </div>
       </div>
 
-      {/* Asset Trend Chart */}
+      {/* Asset Trend Chart (Real Data) */}
       <div className="bg-surface rounded-xl border border-border shadow-lg p-6 transition-colors">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <h3 className="font-semibold text-lg flex items-center gap-2">
@@ -344,7 +344,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                         return (
                         <React.Fragment key={pos.instId}>
                             <tr className="hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
-                                {/* 优化: 使用 whitespace-nowrap 防止换行不一致 (Req #4) */}
+                                {/* 优化: 使用 whitespace-nowrap 修复换行不一致 (Req #4) */}
                                 <td className="px-6 py-4 font-medium flex items-center gap-2 whitespace-nowrap">
                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${pos.instId.includes('SWAP') ? 'bg-orange-500/20 text-orange-400' : 'bg-blue-500/20 text-blue-400'}`}>
                                         {pos.instId.includes('SWAP') ? t.contract : t.spot}
@@ -399,8 +399,8 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
         </div>
       </div>
 
-      {/* 资产列表和饼图 (Req #2: 它们被移到了这里，以优化顶部空间) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* 资产列表和饼图 (Req #2: 它们在手机横屏下也并排显示) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
         {/* Asset List */}
         <div className="bg-surface rounded-xl border border-border shadow-lg overflow-hidden transition-colors">
           <div className="p-4 border-b border-border flex justify-between items-center">
