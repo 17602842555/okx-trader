@@ -3,9 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TraderPro">
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+    
     <title>Professional Trading Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -18,8 +23,8 @@
               surface: 'var(--color-surface)',
               border: 'var(--color-border)',
               primary: '#3b82f6',
-              success: '#10b981',
-              danger: '#ef4444',
+              success: 'var(--color-success)',
+              danger: 'var(--color-danger)',
               text: 'var(--color-text)',
               muted: '#94a3b8',
             }
@@ -33,6 +38,9 @@
         --color-surface: #ffffff;
         --color-text: #0f172a;
         --color-border: #e2e8f0;
+        /* 默认颜色变量，会被 App.tsx 动态覆盖 */
+        --color-success: #10b981;
+        --color-danger: #ef4444;
       }
       .dark {
         --color-background: #0f172a;
@@ -40,6 +48,7 @@
         --color-text: #f8fafc;
         --color-border: #334155;
       }
+      /* 顶部安全区适配 */
       body {
         background-color: var(--color-background);
         color: var(--color-text);
@@ -47,14 +56,14 @@
         transition: background-color 0.3s ease, color 0.3s ease;
         overscroll-behavior-y: none;
         -webkit-tap-highlight-color: transparent;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
       }
       ::-webkit-scrollbar { width: 8px; height: 8px; }
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
       ::-webkit-scrollbar-thumb:hover { background: #64748b; }
       
-      .pt-safe { padding-top: env(safe-area-inset-top); }
-      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
       .h-screen-safe { height: 100vh; height: 100dvh; }
     </style>
   <script type="importmap">

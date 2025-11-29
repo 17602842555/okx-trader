@@ -6,10 +6,7 @@ import TradeInterface from './components/TradeInterface';
 import HistoryAnalysis from './components/HistoryAnalysis';
 import Settings from './components/Settings';
 import { translations } from './utils/locales';
-import { LayoutDashboard, CandlestickChart, Settings as SettingsIcon, AlertCircle, X, History as HistoryIcon, Moon, Sun, Languages, Link, Menu, ChevronLeft, ChevronRight, Activity, GitBranch } from 'lucide-react';
-
-// Manually update this version number when you deploy to verify updates on your phone
-const APP_VERSION = "v1.1.0"; 
+import { LayoutDashboard, CandlestickChart, Settings as SettingsIcon, AlertCircle, X, History as HistoryIcon, Moon, Sun, Languages, Link, Menu, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const DEFAULT_CONFIG: ApiConfig = {
   apiKey: '',
@@ -35,39 +32,63 @@ const App: React.FC = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [rates, setRates] = useState<Record<string, number>>({ USD: 1, CNY: 7.2, BTC: 0.000015 });
   
-  // Sidebar State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Localization Helper
   const t = translations[config.language] || translations.en;
 
-  // Initialize service & Theme
+  // 1. 初始化服务 & 主题 & 颜色模式
   useEffect(() => {
     setService(new OKXService(config));
     localStorage.setItem('okx_config', JSON.stringify(config));
     
     const root = document.documentElement;
+    
+    // 设置亮/暗主题
     if (config.theme === 'light') {
         root.classList.remove('dark');
     } else {
         root.classList.add('dark');
     }
+
+    // 设置红绿/红蓝模式 CSS 变量
+    if (config.colorMode === 'reverse') {
+        // 中国模式: 红涨绿跌
+        root.style.setProperty('--color-success', '#ef4444'); 
+        root.style.setProperty('--color-danger', '#10b981');  
+    } else {
+        // 国际模式: 绿涨红跌 (默认)
+        root.style.setProperty('--color-success', '#10b981'); 
+        root.style.setProperty('--color-danger', '#ef4444');  
+    }
   }, [config]);
 
-  // Auto-sync with GitHub on startup or token change
+  // 2. 启动时的 GitHub 同步
   useEffect(() => {
       if (config.githubToken) {
           service.syncHistoryWithGitHub()
               .then(() => {
                   addToast(t.syncSuccess, 'success');
-                  refreshData(); // Refresh UI after sync
+                  refreshData(); 
               })
               .catch(e => {
                   console.warn("Startup sync failed", e);
               });
       }
-  }, [service]); // service re-creates when config changes
+  }, [service]);
+
+  // 3. 新增：每15分钟自动同步一次 GitHub (云端同步)
+  useEffect(() => {
+    if (!config.githubToken) return;
+    
+    const syncInterval = setInterval(() => {
+        service.syncHistoryWithGitHub()
+            .then(() => console.log('Auto-synced history to GitHub'))
+            .catch(e => console.warn('Auto-sync failed', e));
+    }, 15 * 60 * 1000); // 15分钟
+
+    return () => clearInterval(syncInterval);
+  }, [config.githubToken, service]);
 
   const addToast = (text: string, type: 'success' | 'error' | 'info') => {
     const id = Date.now().toString();
@@ -97,15 +118,11 @@ const App: React.FC = () => {
 
   const refreshData = useCallback(async () => {
     try {
-      // 1. Fetch Balances
       const data = await service.getBalances();
       setBalances(data);
       checkAlerts(data);
-      
-      // 2. Fetch Real Exchange Rates
       const newRates = await service.fetchExchangeRates();
       setRates(newRates);
-
     } catch (error) {
     }
   }, [service]);
@@ -150,7 +167,15 @@ const App: React.FC = () => {
       case 'dashboard':
         return (
           <div className="p-4 md:p-0 flex-1">
-            <Dashboard balances={balances} service={service} t={t} theme={config.theme} onAction={addToast} refreshInterval={config.refreshInterval} />
+            <Dashboard 
+                balances={balances} 
+                service={service} 
+                t={t} 
+                theme={config.theme}
+                colorMode={config.colorMode} // 传递颜色模式
+                onAction={addToast} 
+                refreshInterval={config.refreshInterval} 
+            />
           </div>
         );
       case 'trade':
@@ -184,22 +209,20 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className={`flex flex-col md:flex-row h-screen-safe overflow-hidden transition-colors duration-300 pt-safe pb-safe ${config.theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-background text-text'}`}>
+    <div className={`flex flex-col md:flex-row h-screen-safe overflow-hidden transition-colors duration-300 ${config.theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-background text-text'}`}>
       
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 bg-surface border-b border-slate-700 z-30 shrink-0">
           <div className="flex items-center gap-2 font-bold text-lg">
-             <div className="w-8 h-8 bg-gradient-to-tr from-primary to-blue-400 rounded-lg flex items-center justify-center text-white">
-                <Activity size={20} />
-             </div>
-             CryptoDash
+             <div className="w-8 h-8 bg-gradient-to-tr from-primary to-blue-400 rounded-lg flex items-center justify-center text-white">T</div>
+             TraderPro
           </div>
           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-text">
               {isMobileMenuOpen ? <X size={24}/> : <Menu size={24}/>}
           </button>
       </div>
 
-      {/* Sidebar Navigation - Fixed height and scrollable */}
+      {/* Sidebar */}
       <aside 
         className={`
             fixed md:relative z-20 shrink-0 flex flex-col h-full
@@ -207,17 +230,15 @@ const App: React.FC = () => {
             ${config.theme === 'light' ? 'bg-white border-slate-200' : 'bg-surface border-slate-700'}
             ${isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'} 
             ${isSidebarOpen ? 'md:w-64' : 'md:w-20'}
-            pb-safe md:pb-0 /* Mobile menu safe area */
         `}
       >
         <div className="flex flex-col h-full overflow-y-auto custom-scrollbar">
-            {/* Logo Area */}
             <div className={`flex items-center gap-3 px-4 py-6 mb-2 ${!isSidebarOpen ? 'justify-center' : ''}`}>
                 <div className="w-10 h-10 min-w-[2.5rem] bg-gradient-to-tr from-primary to-blue-400 rounded-lg flex items-center justify-center font-bold text-white text-xl shadow-lg shrink-0">
-                    <Activity size={24} />
+                    T
                 </div>
                 <h1 className={`text-xl font-bold tracking-tight whitespace-nowrap overflow-hidden transition-all duration-300 ${!isSidebarOpen ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-                    Crypto<span className="text-primary">Dash</span>
+                    Trader<span className="text-primary">Pro</span>
                 </h1>
             </div>
 
@@ -228,13 +249,11 @@ const App: React.FC = () => {
                 <NavButton mode="settings" icon={SettingsIcon} label={t.settings} />
             </nav>
 
-            {/* Bottom Actions */}
             <div className="p-4 mt-auto space-y-3">
                 <div className={`flex gap-2 ${!isSidebarOpen ? 'flex-col' : ''}`}>
                     <button 
                         onClick={toggleTheme}
                         className={`flex-1 flex items-center justify-center gap-2 p-2 rounded-lg border text-xs font-medium transition-colors ${config.theme === 'light' ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200' : 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700'}`}
-                        title="Toggle Theme"
                     >
                         {config.theme === 'dark' ? <Moon size={16}/> : <Sun size={16}/>}
                         {isSidebarOpen && (config.theme === 'dark' ? 'Dark' : 'Light')}
@@ -242,30 +261,21 @@ const App: React.FC = () => {
                     <button 
                         onClick={toggleLang}
                         className={`flex-1 flex items-center justify-center gap-2 p-2 rounded-lg border text-xs font-medium transition-colors ${config.theme === 'light' ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200' : 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700'}`}
-                        title="Switch Language"
                     >
                         <Languages size={16}/>
                         {isSidebarOpen && config.language.toUpperCase()}
                     </button>
                 </div>
 
-                {/* API Status & Version Info */}
-                <div className={`p-3 rounded-xl border text-xs flex items-center ${config.theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/50 border-slate-700'} ${!isSidebarOpen ? 'justify-center flex-col gap-2' : 'justify-between'}`}>
-                    <div className="flex items-center gap-2">
-                        <Link size={14} className="shrink-0 text-success" />
-                        {isSidebarOpen && <span className="font-semibold text-success truncate">Connected</span>}
-                    </div>
-                    
-                    {/* Version Display */}
-                    <div className={`flex items-center gap-1 text-muted ${!isSidebarOpen ? 'border-t border-slate-700 pt-2' : ''}`}>
-                         <GitBranch size={12}/>
-                         <span className="font-mono">{APP_VERSION}</span>
-                    </div>
+                <div className={`p-3 rounded-xl border text-xs text-muted flex items-center ${config.theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/50 border-slate-700'} ${!isSidebarOpen ? 'justify-center' : 'gap-2'}`}>
+                    <Link size={14} className="shrink-0 text-success" />
+                    {isSidebarOpen && (
+                         <span className="font-semibold text-success truncate">Connected API</span>
+                    )}
                 </div>
             </div>
         </div>
 
-        {/* Sidebar Toggle Button (Desktop Only) */}
         <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className={`hidden md:flex absolute -right-3 top-20 bg-primary text-white p-1 rounded-full shadow-lg border border-surface hover:scale-110 transition-transform z-50`}
@@ -275,7 +285,6 @@ const App: React.FC = () => {
 
       </aside>
 
-      {/* Main Content - Independent Scroll */}
       <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-transparent relative">
         <div className="flex-1 overflow-y-auto p-0 md:p-6 custom-scrollbar">
             <div className="max-w-[1600px] mx-auto h-full flex flex-col">
@@ -284,7 +293,6 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Toast Container */}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none pb-safe pr-4">
         {toasts.map(toast => (
           <div 
@@ -310,7 +318,6 @@ const App: React.FC = () => {
         ))}
       </div>
       
-      {/* Mobile Overlay */}
       {isMobileMenuOpen && (
           <div className="fixed inset-0 bg-black/50 z-10 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
       )}
