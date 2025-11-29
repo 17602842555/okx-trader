@@ -1,146 +1,160 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Star, TrendingUp, TrendingDown } from 'lucide-react';
 import { OKXService } from '../services/okxService';
-import { Ticker } from '../types';
-import { TrendingUp, TrendingDown, Flame, Search } from 'lucide-react';
+import { Instrument } from '../types';
 
 interface MarketSidebarProps {
-  service: OKXService;
   onSelect: (instId: string) => void;
-  currentInstId: string;
+  selectedInstId: string;
+  service: OKXService;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-const MarketSidebar: React.FC<MarketSidebarProps> = ({ service, onSelect, currentInstId }) => {
-  const [tab, setTab] = useState<'hot' | 'gainers' | 'losers'>('hot');
-  const [type, setType] = useState<'SPOT' | 'SWAP'>('SPOT');
-  const [tickers, setTickers] = useState<Ticker[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+const MarketSidebar: React.FC<MarketSidebarProps> = ({ onSelect, selectedInstId, service, isOpen, onClose }) => {
+  const [instruments, setInstruments] = useState<Instrument[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<'USDT' | 'USDC' | 'Favorites'>('USDT');
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    const saved = localStorage.getItem('okx_favorites');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   useEffect(() => {
-    const fetch = async () => {
-        const data = await service.getMarketTickers(type);
-        setTickers(data);
+    let mounted = true;
+    
+    const fetchMarketData = async () => {
+      try {
+        // Fetch Spot instruments (Change 'SPOT' to 'SWAP' if you want perps)
+        const data = await service.getInstruments('SPOT');
+        
+        if (mounted) {
+          // 核心修复：使用 Map 根据 instId 强制去重
+          const uniqueMap = new Map();
+          data.forEach(item => {
+              if (!uniqueMap.has(item.instId)) {
+                  uniqueMap.set(item.instId, item);
+              }
+          });
+          // 将 Map 转回数组
+          setInstruments(Array.from(uniqueMap.values()));
+        }
+      } catch (error) {
+        console.error("Failed to fetch instruments", error);
+      }
     };
-    fetch();
-    const interval = setInterval(fetch, 5000);
-    return () => clearInterval(interval);
-  }, [service, type]);
 
-  const displayedTickers = useMemo(() => {
-      let data = [...tickers];
+    fetchMarketData();
+    return () => { mounted = false; };
+  }, [service]);
+
+  const toggleFavorite = (e: React.MouseEvent, instId: string) => {
+    e.stopPropagation();
+    const newFavs = favorites.includes(instId)
+      ? favorites.filter(id => id !== instId)
+      : [...favorites, instId];
+    
+    setFavorites(newFavs);
+    localStorage.setItem('okx_favorites', JSON.stringify(newFavs));
+  };
+
+  const filteredInstruments = useMemo(() => {
+    return instruments.filter(inst => {
+      const matchesSearch = inst.instId.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesQuote = filter === 'Favorites' 
+        ? favorites.includes(inst.instId)
+        : inst.quoteCcy === filter;
       
-      // Filter
-      if (searchTerm) {
-          data = data.filter(t => t.instId.toLowerCase().includes(searchTerm.toLowerCase()));
-      }
+      return matchesSearch && matchesQuote;
+    }).slice(0, 50); // Performance: Limit rendering to top 50 matches
+  }, [instruments, searchQuery, filter, favorites]);
 
-      // Sort
-      if (tab === 'hot') {
-          // Sort by Volume (approximate using volCcy24h * last)
-          data.sort((a, b) => (parseFloat(b.volCcy24h) * parseFloat(b.last)) - (parseFloat(a.volCcy24h) * parseFloat(a.last)));
-      } else if (tab === 'gainers') {
-          // Sort by Change % Descending
-          data.sort((a, b) => {
-              const chgA = (parseFloat(a.last) - parseFloat(a.open24h)) / parseFloat(a.open24h);
-              const chgB = (parseFloat(b.last) - parseFloat(b.open24h)) / parseFloat(b.open24h);
-              return chgB - chgA;
-          });
-      } else if (tab === 'losers') {
-          // Sort by Change % Ascending
-          data.sort((a, b) => {
-              const chgA = (parseFloat(a.last) - parseFloat(a.open24h)) / parseFloat(a.open24h);
-              const chgB = (parseFloat(b.last) - parseFloat(b.open24h)) / parseFloat(b.open24h);
-              return chgA - chgB;
-          });
-      }
-      return data.slice(0, 20);
-  }, [tickers, tab, searchTerm]);
+  if (!isOpen) return null;
 
   return (
-    <div className="bg-surface border border-border rounded-xl h-full flex flex-col shadow-lg overflow-hidden">
-        {/* Type Switcher */}
-        <div className="flex border-b border-border">
-            <button 
-                onClick={() => setType('SPOT')} 
-                className={`flex-1 py-3 text-sm font-bold ${type === 'SPOT' ? 'text-primary bg-slate-100 dark:bg-slate-900/50 border-b-2 border-primary' : 'text-muted hover:text-text'}`}
+    <div className="fixed inset-y-0 left-0 w-80 bg-surface border-r border-border shadow-2xl z-50 flex flex-col animate-slideIn">
+      {/* Header & Search */}
+      <div className="p-4 border-b border-border">
+        <h2 className="font-bold text-lg mb-4">Market</h2>
+        
+        {/* Filter Tabs */}
+        <div className="flex gap-2 mb-4">
+          {(['USDT', 'USDC', 'Favorites'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1 rounded text-xs font-bold transition-colors ${
+                filter === f 
+                  ? 'bg-primary text-white' 
+                  : 'bg-slate-100 dark:bg-slate-800 text-muted hover:text-text'
+              }`}
             >
-                Spot
+              {f}
             </button>
-            <button 
-                onClick={() => setType('SWAP')} 
-                className={`flex-1 py-3 text-sm font-bold ${type === 'SWAP' ? 'text-primary bg-slate-100 dark:bg-slate-900/50 border-b-2 border-primary' : 'text-muted hover:text-text'}`}
-            >
-                Perp
-            </button>
+          ))}
         </div>
 
-        {/* Tab Header (Sub-menu) */}
-        <div className="flex p-1 gap-1 text-xs font-medium text-muted border-b border-border bg-slate-50 dark:bg-slate-900/20">
-             <button 
-                onClick={() => setTab('hot')} 
-                className={`flex-1 flex justify-center items-center gap-1 py-1.5 rounded transition-colors ${tab === 'hot' ? 'bg-surface text-text shadow-sm border border-border' : 'hover:bg-slate-200 dark:hover:bg-slate-800'}`}
-             >
-                <Flame size={12} className={tab === 'hot' ? 'text-orange-500' : ''}/> Hot
-             </button>
-             <button 
-                onClick={() => setTab('gainers')} 
-                className={`flex-1 flex justify-center items-center gap-1 py-1.5 rounded transition-colors ${tab === 'gainers' ? 'bg-surface text-text shadow-sm border border-border' : 'hover:bg-slate-200 dark:hover:bg-slate-800'}`}
-             >
-                <TrendingUp size={12} className={tab === 'gainers' ? 'text-success' : ''}/> Gainers
-             </button>
-             <button 
-                onClick={() => setTab('losers')} 
-                className={`flex-1 flex justify-center items-center gap-1 py-1.5 rounded transition-colors ${tab === 'losers' ? 'bg-surface text-text shadow-sm border border-border' : 'hover:bg-slate-200 dark:hover:bg-slate-800'}`}
-             >
-                <TrendingDown size={12} className={tab === 'losers' ? 'text-danger' : ''}/> Losers
-             </button>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
+          <input 
+            type="text" 
+            placeholder="Search coin..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
+          />
         </div>
+      </div>
 
-        {/* Search */}
-        <div className="p-3 border-b border-border">
-            <div className="bg-slate-100 dark:bg-slate-900/50 flex items-center px-3 py-2 rounded-lg border border-border">
-                <Search size={14} className="text-muted mr-2"/>
-                <input 
-                    type="text" 
-                    placeholder="Search Coin" 
-                    className="bg-transparent text-sm w-full focus:outline-none text-text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+      {/* List */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {filteredInstruments.length === 0 ? (
+            <div className="p-8 text-center text-muted text-sm">
+                No instruments found.
             </div>
-        </div>
-
-        {/* Header Row */}
-        <div className="flex px-4 py-2 text-[10px] text-muted uppercase bg-slate-50 dark:bg-transparent">
-            <div className="flex-1">Symbol</div>
-            <div className="w-20 text-right">Last</div>
-            <div className="w-16 text-right">24h%</div>
-        </div>
-
-        {/* List */}
-        <div className="flex-1 overflow-y-auto">
-            {displayedTickers.map(t => {
-                const change = ((parseFloat(t.last) - parseFloat(t.open24h)) / parseFloat(t.open24h)) * 100;
-                const isUp = change >= 0;
-                return (
+        ) : (
+            filteredInstruments.map((inst) => (
+            <div 
+                key={inst.instId}
+                onClick={() => {
+                    onSelect(inst.instId);
+                    if (window.innerWidth < 768) onClose(); // Close on mobile select
+                }}
+                className={`flex items-center justify-between p-3 px-4 cursor-pointer transition-colors border-b border-border/50 ${
+                selectedInstId === inst.instId 
+                    ? 'bg-primary/10 border-l-4 border-l-primary' 
+                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border-l-4 border-l-transparent'
+                }`}
+            >
+                <div className="flex flex-col">
+                    <span className="font-bold text-sm text-text">{inst.baseCcy}</span>
+                    <span className="text-xs text-muted">/{inst.quoteCcy}</span>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                    {/* Mock Change - normally this comes from a separate ticker API */}
+                    <span className={`text-xs font-medium ${Math.random() > 0.5 ? 'text-success' : 'text-danger'}`}>
+                        {Math.random() > 0.5 ? '+' : '-'}{(Math.random() * 5).toFixed(2)}%
+                    </span>
+                    
                     <button 
-                        key={t.instId}
-                        onClick={() => onSelect(t.instId)}
-                        className={`w-full flex px-4 py-2.5 items-center hover:bg-slate-100 dark:hover:bg-slate-700/30 transition-colors border-b border-border/50 ${currentInstId === t.instId ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`}
+                        onClick={(e) => toggleFavorite(e, inst.instId)}
+                        className={`p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${
+                            favorites.includes(inst.instId) ? 'text-yellow-400' : 'text-slate-300'
+                        }`}
                     >
-                        <div className="flex-1 text-left">
-                            <div className="text-sm font-bold text-text">{t.instId.split('-')[0]}</div>
-                            <div className="text-[10px] text-muted">{type}</div>
-                        </div>
-                        <div className="w-20 text-right text-sm font-mono text-text">
-                            {parseFloat(t.last).toLocaleString()}
-                        </div>
-                        <div className={`w-16 text-right text-xs font-bold ${isUp ? 'text-success' : 'text-danger'}`}>
-                            {isUp ? '+' : ''}{change.toFixed(2)}%
-                        </div>
+                        <Star size={14} fill={favorites.includes(inst.instId) ? "currentColor" : "none"} />
                     </button>
-                )
-            })}
-        </div>
+                </div>
+            </div>
+            ))
+        )}
+      </div>
+      
+      {/* Footer / Overlay for mobile */}
+      <div className="p-3 border-t border-border text-center text-xs text-muted md:hidden">
+          Tap to select a pair
+      </div>
     </div>
   );
 };
