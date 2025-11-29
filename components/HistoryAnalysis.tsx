@@ -3,7 +3,6 @@ import { OKXService } from '../services/okxService';
 import { TradeHistoryItem } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { Download, History, Calculator, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import { formatPrice, formatAmount, formatPct } from '../utils/formatting';
 
 interface HistoryProps {
   service: OKXService;
@@ -11,82 +10,18 @@ interface HistoryProps {
   colorMode?: 'standard' | 'reverse';
 }
 
-// Helper to get all days for a given month, including leading empty spaces
-const getDaysInMonth = (year: number, month: number) => {
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday
-    
-    const days = [];
-    // Empty slots for days before 1st
-    for (let i = 0; i < firstDay; i++) days.push(null);
-    // Actual days
-    for (let i = 1; i <= daysInMonth; i++) days.push(i);
-    return days;
-};
-
-// Component for a single month view
-const CalendarMonth: React.FC<{ date: Date, dailyPnlMap: Record<string, number>, t: any, isReverse: boolean }> = ({ date, dailyPnlMap, t, isReverse }) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const days = getDaysInMonth(year, month);
-    
-    const colorUp = isReverse ? 'text-danger' : 'text-success';
-    const colorDown = isReverse ? 'text-success' : 'text-danger';
-    const bgUp = isReverse ? 'bg-red-500/10 border-red-500/30' : 'bg-emerald-500/10 border-emerald-500/30';
-    const bgDown = isReverse ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30';
-    const bgZero = 'bg-slate-500/10 border-slate-500/10 text-slate-400'; 
-
-    return (
-        <div className="bg-surface rounded-xl border border-slate-700 p-4 shadow-lg flex-1 min-w-[300px] flex-shrink-0">
-            <div className="text-center text-lg font-bold mb-4">
-                {date.toLocaleDateString(undefined, {year: 'numeric', month: 'long'})}
-            </div>
-             
-             <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                 {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
-                     <div key={d} className="text-xs text-muted">{d}</div>
-                 ))}
-             </div>
-             <div className="grid grid-cols-7 gap-1">
-                 {days.map((day, idx) => {
-                     if (!day) return <div key={`empty-${month}-${idx}`} className="aspect-square"></div>;
-                     
-                     const key = `${year}-${month}-${day}`;
-                     const pnl = dailyPnlMap[key];
-                     
-                     return (
-                         <div key={key} className={`aspect-square rounded-lg border flex flex-col items-center justify-center text-center p-[2px] ${
-                             pnl === undefined || pnl === 0 
-                                ? bgZero 
-                                : (pnl > 0 ? bgUp : bgDown)
-                         }`}>
-                             <span className="text-xs text-muted">{day}</span>
-                             {pnl !== undefined && (
-                                 <span className={`text-[9px] font-bold ${pnl > 0 ? colorUp : colorDown}`}>
-                                     {pnl > 0 ? '+' : ''}{pnl.toFixed(1)}
-                                 </span>
-                             )}
-                         </div>
-                     );
-                 })}
-             </div>
-        </div>
-    );
-};
-
-
 const HistoryAnalysis: React.FC<HistoryProps> = ({ service, t, colorMode = 'standard' }) => {
   const [history, setHistory] = useState<TradeHistoryItem[]>([]);
+  const [calendarDate, setCalendarDate] = useState(new Date());
 
   useEffect(() => {
     service.getTradeHistory().then(setHistory);
   }, [service]);
 
-  // Fix NaN: Safe Parse Logic & Total Pnl Calculation
+  // Fix NaN: Safe Parse Logic
   const totalPnl = useMemo(() => {
     return history.reduce((acc, curr) => {
         const val = parseFloat(curr.pnl);
-        // Req #1: Fix NaN issue by treating invalid/null values as 0
         return acc + (isNaN(val) ? 0 : val);
     }, 0);
   }, [history]);
@@ -110,24 +45,36 @@ const HistoryAnalysis: React.FC<HistoryProps> = ({ service, t, colorMode = 'stan
     const map: Record<string, number> = {};
     history.forEach(item => {
         const date = new Date(parseInt(item.ts));
-        const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`; 
+        const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
         const val = parseFloat(item.pnl) || 0;
         map[key] = (map[key] || 0) + val;
     });
     return map;
   }, [history]);
-  
-  // Req #1: Generate fixed 3-month view dates
-  const currentDate = new Date();
-  const month1 = new Date(currentDate.getFullYear(), currentDate.getMonth() - 2, 1);
-  const month2 = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-  const month3 = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
 
+  const calendarDays = useMemo(() => {
+      const year = calendarDate.getFullYear();
+      const month = calendarDate.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday
+      
+      const days = [];
+      // Empty slots for days before 1st
+      for (let i = 0; i < firstDay; i++) days.push(null);
+      // Actual days
+      for (let i = 1; i <= daysInMonth; i++) days.push(i);
+      return days;
+  }, [calendarDate]);
+
+  const changeMonth = (delta: number) => {
+      setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+  };
 
   const isReverse = colorMode === 'reverse';
   const colorUp = isReverse ? 'text-danger' : 'text-success';
   const colorDown = isReverse ? 'text-success' : 'text-danger';
-
+  const bgUp = isReverse ? 'bg-red-500/10 border-red-500/30' : 'bg-emerald-500/10 border-emerald-500/30';
+  const bgDown = isReverse ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30';
 
   return (
     <div className="space-y-6 animate-fadeIn pb-10">
@@ -159,42 +106,72 @@ const HistoryAnalysis: React.FC<HistoryProps> = ({ service, t, colorMode = 'stan
         </div>
       </div>
 
-      {/* 盈亏日历 (Req #1: 三月视图) */}
-      <div className="bg-surface rounded-xl border border-slate-700 p-6 shadow-lg">
-         <div className="flex items-center gap-2 font-semibold text-lg mb-6">
-             <CalendarIcon size={18} className="text-primary"/> PnL Calendar (Last 3 Months)
-         </div>
-         {/* 优化: 使用 overflow-x-auto 和 flex-shrink-0 确保三个月在小屏上并排显示，符合移动端设计 */}
-         <div className="flex gap-6 lg:flex-row overflow-x-auto pb-4 lg:pb-0 custom-scrollbar">
-            <CalendarMonth date={month1} dailyPnlMap={dailyPnlMap} t={t} isReverse={isReverse} />
-            <CalendarMonth date={month2} dailyPnlMap={dailyPnlMap} t={t} isReverse={isReverse} />
-            <CalendarMonth date={month3} dailyPnlMap={dailyPnlMap} t={t} isReverse={isReverse} />
-         </div>
-      </div>
-      
+      {/* Calendar & Chart Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* PnL Calendar */}
+          <div className="bg-surface rounded-xl border border-slate-700 p-6 shadow-lg">
+             <div className="flex justify-between items-center mb-4">
+                 <h3 className="text-lg font-bold flex items-center gap-2">
+                     <CalendarIcon size={18} className="text-primary"/> PnL Calendar
+                 </h3>
+                 <div className="flex items-center gap-4 text-sm font-medium">
+                     <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-slate-700 rounded"><ChevronLeft size={16}/></button>
+                     <span>{calendarDate.toLocaleDateString(undefined, {year: 'numeric', month: 'long'})}</span>
+                     <button onClick={() => changeMonth(1)} className="p-1 hover:bg-slate-700 rounded"><ChevronRight size={16}/></button>
+                 </div>
+             </div>
+             
+             <div className="grid grid-cols-7 gap-2 text-center mb-2">
+                 {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
+                     <div key={d} className="text-xs text-muted">{d}</div>
+                 ))}
+             </div>
+             <div className="grid grid-cols-7 gap-2">
+                 {calendarDays.map((day, idx) => {
+                     if (!day) return <div key={`empty-${idx}`} className="aspect-square"></div>;
+                     
+                     const key = `${calendarDate.getFullYear()}-${calendarDate.getMonth()}-${day}`;
+                     const pnl = dailyPnlMap[key];
+                     
+                     return (
+                         <div key={key} className={`aspect-square rounded-lg border flex flex-col items-center justify-center p-1 ${
+                             pnl ? (pnl > 0 ? bgUp : bgDown) : 'bg-slate-100/5 dark:bg-slate-800/50 border-transparent'
+                         }`}>
+                             <span className="text-xs text-muted">{day}</span>
+                             {pnl !== undefined && (
+                                 <span className={`text-[10px] font-bold ${pnl > 0 ? colorUp : colorDown}`}>
+                                     {pnl > 0 ? '+' : ''}{pnl.toFixed(1)}
+                                 </span>
+                             )}
+                         </div>
+                     );
+                 })}
+             </div>
+          </div>
 
-      {/* PnL Chart */}
-      <div className="bg-surface rounded-xl border border-slate-700 p-6 shadow-lg">
-        <h3 className="text-lg font-bold mb-4">{t.pnlAnalysis}</h3>
-        <div className="h-[300px]">
-        <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={pnlData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-            <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} minTickGap={30} />
-            <YAxis stroke="#94a3b8" fontSize={12} />
-            <Tooltip 
-                cursor={{fill: '#334155', opacity: 0.2}}
-                contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f1f5f9' }}
-            />
-            <ReferenceLine y={0} stroke="#94a3b8" />
-            <Bar dataKey="pnl" fill="#3b82f6">
-                {pnlData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? (isReverse ? '#ef4444' : '#10b981') : (isReverse ? '#10b981' : '#ef4444')} />
-                ))}
-            </Bar>
-            </BarChart>
-        </ResponsiveContainer>
-        </div>
+          {/* PnL Chart */}
+          <div className="bg-surface rounded-xl border border-slate-700 p-6 shadow-lg">
+            <h3 className="text-lg font-bold mb-4">{t.pnlAnalysis}</h3>
+            <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={pnlData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} minTickGap={30} />
+                <YAxis stroke="#94a3b8" fontSize={12} />
+                <Tooltip 
+                    cursor={{fill: '#334155', opacity: 0.2}}
+                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f1f5f9' }}
+                />
+                <ReferenceLine y={0} stroke="#94a3b8" />
+                <Bar dataKey="pnl" fill="#3b82f6">
+                    {pnlData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? (isReverse ? '#ef4444' : '#10b981') : (isReverse ? '#10b981' : '#ef4444')} />
+                    ))}
+                </Bar>
+                </BarChart>
+            </ResponsiveContainer>
+            </div>
+          </div>
       </div>
 
       {/* Table */}
