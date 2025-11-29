@@ -128,8 +128,8 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
         }
 
         await service.amendOrder(req);
-        // FIX: Replaced potentially corrupted template string with clean string template syntax
-        onAction?.(, 'success'); 
+        // L132 FIX: Clean template literal syntax
+        onAction?.(\`${t.orderModified} ${newPx}\`, 'success'); 
     } catch (e: any) {
          onAction?.(e.message || t.modifyFailed, 'error');
     }
@@ -154,7 +154,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
             sz: pos.pos 
         });
         
-        onAction?.(, 'success');
+        onAction?.(\`${t.addedAlgo} ${type.toUpperCase()} @ ${priceVal}\`, 'success');
       } catch(e:any) {
           onAction?.(e.message, 'error');
       }
@@ -212,12 +212,12 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                 </>
             )}
           </div>
-          <div className={`mt-2 text-xs flex items-center ${percentageChange >= 0 ? 'text-success' : 'text-danger'}`}>
+          <div className={\`mt-2 text-xs flex items-center \${percentageChange >= 0 ? 'text-success' : 'text-danger'}\`}>
             <TrendingUp size={14} className="mr-1" /> {formatPct(percentageChange)} ({period})
           </div>
           {unit !== 'USD' && (
               <div className="mt-1 text-[10px] text-muted">
-                  {t.rate}: 1 USD ≈ {service.exchangeRates[unit]} {unit}
+                  {t.rate}: 1 USD ≈ ${service.exchangeRates[unit]} {unit}
               </div>
           )}
         </div>
@@ -254,11 +254,11 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                     <button
                         key={p}
                         onClick={() => setPeriod(p)}
-                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                        className={\`px-3 py-1 rounded text-xs font-medium transition-colors \${
                             period === p 
                             ? 'bg-primary text-white shadow-sm' 
                             : 'text-muted hover:text-text'
-                        }`}
+                        }\`}
                     >
                         {p}
                     </button>
@@ -296,12 +296,12 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                             stroke="#94a3b8"
                             fontSize={10}
                             domain={['auto', 'auto']}
-                            tickFormatter={(val) => hideBalance ? '***' : `$${val/1000}k`}
+                            tickFormatter={(val) => hideBalance ? '***' : \`$\${val/1000}k\`}
                         />
                         <RechartsTooltip 
                             contentStyle={{ backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff', borderColor: '#334155', color: theme === 'dark' ? '#f1f5f9' : '#0f172a' }}
                             labelFormatter={(ts) => new Date(parseInt(ts)).toLocaleString()}
-                            formatter={(value: number) => [hideBalance ? '******' : `$${value.toLocaleString()}`, 'Equity']}
+                            formatter={(value: number) => [hideBalance ? '******' : \`$\${value.toLocaleString()}\`, 'Equity']}
                         />
                         <Area type="monotone" dataKey="totalEq" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorEq)" />
                     </AreaChart>
@@ -335,7 +335,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                         let suffix = '';
                         
                         if (pos.instId.includes('SWAP') && pos.ctVal) {
-                             sizeDisplay = `${(parseFloat(pos.pos) * parseFloat(pos.ctVal)).toFixed(4)}`;
+                             sizeDisplay = \`\${(parseFloat(pos.pos) * parseFloat(pos.ctVal)).toFixed(4)}\`;
                              suffix = pos.instId.split('-')[0]; // e.g. BTC
                         } else {
                              sizeDisplay = formatAmount(pos.pos);
@@ -347,19 +347,19 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                             <tr className="hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
                                 {/* 优化: 使用 whitespace-nowrap 修复换行不一致 (Req #4) */}
                                 <td className="px-6 py-4 font-medium flex items-center gap-2 whitespace-nowrap">
-                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${pos.instId.includes('SWAP') ? 'bg-orange-500/20 text-orange-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                    <span className={\`px-1.5 py-0.5 rounded text-[10px] font-bold \${pos.instId.includes('SWAP') ? 'bg-orange-500/20 text-orange-400' : 'bg-blue-500/20 text-blue-400'}\`}>
                                         {pos.instId.includes('SWAP') ? t.contract : t.spot}
                                     </span>
                                     {pos.instId}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`uppercase font-bold text-xs px-2 py-1 rounded ${pos.posSide === 'short' ? 'bg-danger/20 text-danger' : 'bg-success/20 text-success'}`}>
+                                    <span className={\`uppercase font-bold text-xs px-2 py-1 rounded \${pos.posSide === 'short' ? 'bg-danger/20 text-danger' : 'bg-success/20 text-success'}\`}>
                                         {pos.posSide}
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 font-mono whitespace-nowrap">{sizeDisplay} <span className="text-muted text-xs">{suffix}</span></td>
                                 <td className="px-6 py-4 text-right font-mono whitespace-nowrap">{formatPrice(pos.avgPx)}</td>
-                                <td className={`px-6 py-4 text-right font-mono font-bold whitespace-nowrap ${parseFloat(pos.upl) >= 0 ? 'text-success' : 'text-danger'}`}>
+                                <td className={\`px-6 py-4 text-right font-mono font-bold whitespace-nowrap \${parseFloat(pos.upl) >= 0 ? 'text-success' : 'text-danger'}\`}>
                                     {hideBalance ? '****' : (
                                         <>
                                         {parseFloat(pos.upl) > 0 ? '+' : ''}{formatPrice(pos.upl)}
@@ -429,7 +429,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                       {hideBalance ? '****' : formatAmount(asset.availBal)}
                     </td>
                     <td className="px-6 py-4 text-right font-mono text-sm">
-                      {hideBalance ? '****' : `$${formatAmount(asset.eqUsd)}`}
+                      {hideBalance ? '****' : \`$\${formatAmount(asset.eqUsd)}\`}
                     </td>
                   </tr>
                 ))}
@@ -456,7 +456,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                   stroke="none"
                 >
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={\`cell-\${index}\`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <RechartsTooltip 
