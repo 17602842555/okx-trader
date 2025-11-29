@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { AssetBalance, Position, AssetHistory, TimePeriod, CurrencyUnit, Order } from '../types';
 import { OKXService } from '../services/okxService';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Wallet, TrendingUp, TrendingDown, DollarSign, ChevronDown, ChevronUp, Activity, ArrowRightLeft, Eye, EyeOff } from 'lucide-react';
+import { Wallet, TrendingUp, DollarSign, ChevronDown, ChevronUp, Activity, ArrowRightLeft, Eye, EyeOff } from 'lucide-react';
 import TradingChart from './TradingChart';
 import { formatPrice, formatAmount, formatPct } from '../utils/formatting';
 
@@ -11,14 +11,13 @@ interface DashboardProps {
   service: OKXService;
   t: any;
   theme: 'dark' | 'light';
-  colorMode?: 'standard' | 'reverse';
   onAction?: (msg: string, type: 'success' | 'error') => void;
   refreshInterval?: number;
 }
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'];
 
-const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, colorMode = 'standard', onAction, refreshInterval = 10000 }) => {
+const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAction, refreshInterval = 10000 }) => {
   const [positions, setPositions] = useState<Position[]>([]);
   const [assetHistory, setAssetHistory] = useState<AssetHistory[]>([]);
   const [expandedPosition, setExpandedPosition] = useState<string | null>(null);
@@ -28,17 +27,14 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, colo
   const [isUnitOpen, setIsUnitOpen] = useState(false);
   const [hideBalance, setHideBalance] = useState(false);
 
-  // 1. 仓位更新
   useEffect(() => {
     service.getPositions().then(setPositions);
-  }, [service, balances]);
+  }, [service, balances]); 
 
-  // 2. 资产趋势图更新 (恢复为依赖 balances，确保图表实时跳动)
   useEffect(() => {
     service.getAssetHistory(period).then(setAssetHistory);
-  }, [service, period, balances]); 
+  }, [service, period, balances]);
 
-  // Fetch orders for the expanded position
   useEffect(() => {
     if (!expandedPosition) {
         setExpandedOrders([]);
@@ -72,7 +68,6 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, colo
      return totalBalanceUsd * service.exchangeRates[unit];
   }, [totalBalanceUsd, unit, service.exchangeRates]);
 
-  // 计算涨跌幅
   const percentageChange = useMemo(() => {
       if (assetHistory.length < 2) return 0;
       const startEq = assetHistory[0].totalEq;
@@ -80,23 +75,6 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, colo
       const currentEq = assetHistory[assetHistory.length - 1].totalEq;
       return ((currentEq - startEq) / startEq) * 100;
   }, [assetHistory]);
-
-  // 计算绝对盈亏
-  const periodPnl = useMemo(() => {
-      if (assetHistory.length < 2) return 0;
-      const startEq = assetHistory[0].totalEq;
-      const currentEq = assetHistory[assetHistory.length - 1].totalEq;
-      return (currentEq - startEq) * service.exchangeRates[unit];
-  }, [assetHistory, unit, service.exchangeRates]);
-
-  // 确定图表颜色
-  const chartColor = useMemo(() => {
-      const isProfit = percentageChange >= 0;
-      if (colorMode === 'reverse') {
-          return isProfit ? '#ef4444' : '#10b981';
-      }
-      return isProfit ? '#10b981' : '#ef4444';
-  }, [percentageChange, colorMode]);
 
   const chartData = useMemo(() => {
     return balances
@@ -183,32 +161,30 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, colo
 
   return (
     <div className="space-y-6 animate-fadeIn pb-10">
-      
-      {/* Merged Asset Overview Card */}
-      <div className="bg-surface rounded-xl border border-border shadow-lg transition-colors overflow-hidden relative">
-        <div className="p-6 pb-0 flex items-center justify-between">
+      {/* Responsive Grid: 1 col on mobile portrait, 2 cols on mobile landscape/tablet, 3 on desktop */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="bg-surface p-6 rounded-xl border border-border shadow-lg transition-colors">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-3 text-muted">
                 <Wallet size={20} />
                 <span className="text-sm font-medium">{t.totalAssets}</span>
             </div>
-            
-            <div className="flex items-center gap-2 relative z-10">
+            <div className="flex items-center gap-2 relative">
                 <button 
                     onClick={() => setHideBalance(!hideBalance)}
-                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-muted transition-colors"
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-muted"
                 >
-                    {hideBalance ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {hideBalance ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
                 
                 <button 
                     onClick={() => setIsUnitOpen(!isUnitOpen)}
-                    className="flex items-center gap-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    className="flex items-center gap-1 text-xs bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
                 >
                     {unit} <ArrowRightLeft size={12}/>
                 </button>
-                
                 {isUnitOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-24 bg-surface border border-border rounded-lg shadow-xl z-20 overflow-hidden py-1">
+                    <div className="absolute right-0 top-full mt-1 w-24 bg-surface border border-border rounded shadow-xl z-20">
                         {(['USD', 'CNY', 'BTC'] as CurrencyUnit[]).map(u => (
                             <button 
                                 key={u}
@@ -216,7 +192,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, colo
                                     setUnit(u);
                                     setIsUnitOpen(false);
                                 }}
-                                className="block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                                className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
                             >
                                 {u}
                             </button>
@@ -224,142 +200,96 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, colo
                     </div>
                 )}
             </div>
-        </div>
-
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
-                <div className="text-4xl font-bold text-text tracking-tight mb-2">
-                    {hideBalance ? '******' : (
-                        <>
-                        {unit === 'USD' && '$'}
-                        {unit === 'CNY' && '¥'}
-                        {unit === 'BTC' && '₿'}
-                        {displayBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: unit === 'BTC' ? 6 : 2 })}
-                        </>
-                    )}
-                </div>
-                
-                <div className="flex items-center gap-4 text-sm">
-                   {unit !== 'USD' && (
-                        <div className="text-muted text-xs">
-                            1 USD ≈ {service.exchangeRates[unit]} {unit}
-                        </div>
-                    )}
-                    <div className="inline-flex items-center px-2 py-0.5 bg-success/10 text-success rounded-full text-[10px] font-bold border border-success/20">
-                        <div className="w-1.5 h-1.5 rounded-full bg-success mr-1.5 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></div>
-                        ACTIVE
-                     </div>
-                </div>
-            </div>
-
-            <div className="flex items-center gap-8 md:border-l border-border md:pl-8">
-                <div className="flex-1">
-                    <div className="flex items-center gap-1.5 text-muted text-xs font-medium mb-1">
-                        <DollarSign size={14} />
-                        {period} PnL
-                    </div>
-                    <div className={`text-xl font-bold tracking-tight ${periodPnl >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {hideBalance ? '****' : (
-                            <span className="flex items-center gap-1">
-                                {periodPnl > 0 ? '+' : ''}{periodPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                {unit !== 'BTC' && unit}
-                            </span>
-                        )}
-                    </div>
-                    <div className={`text-xs flex items-center mt-1 ${percentageChange >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {percentageChange >= 0 ? <TrendingUp size={12} className="mr-1" /> : <TrendingDown size={12} className="mr-1" />}
-                        {formatPct(percentageChange)}
-                    </div>
-                </div>
-            </div>
-        </div>
-      </div>
-
-      {/* Asset Trend Chart */}
-      <div className="bg-surface rounded-xl border border-border shadow-lg p-6 transition-colors">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-            <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Activity size={18} className="text-primary"/> 
-                {t.assetTrend}
-            </h3>
-            <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-lg border border-border">
-                {(['1D', '1W', '1M', '3M'] as TimePeriod[]).map((p) => (
-                    <button
-                        key={p}
-                        onClick={() => setPeriod(p)}
-                        className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                            period === p 
-                            ? 'bg-surface text-primary shadow-sm border border-border/50 font-bold' 
-                            : 'text-muted hover:text-text hover:bg-black/5 dark:hover:bg-white/5'
-                        }`}
-                    >
-                        {p}
-                    </button>
-                ))}
-            </div>
-        </div>
-        
-        <div className="h-[250px] w-full">
-            {assetHistory.length < 2 ? (
-                <div className="h-full flex flex-col items-center justify-center text-muted text-sm border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-lg">
-                    <p>Not enough history data collected yet.</p>
-                    <p>Keep the app open to record asset trends.</p>
-                </div>
-            ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={assetHistory}>
-                        <defs>
-                            <linearGradient id="colorEq" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor={chartColor} stopOpacity={0.2}/>
-                                <stop offset="95%" stopColor={chartColor} stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? "#334155" : "#e2e8f0"} opacity={0.3} />
-                        <XAxis 
-                            dataKey="ts" 
-                            tickFormatter={(ts) => {
-                                const date = new Date(parseInt(ts));
-                                return period === '1D' 
-                                    ? date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) 
-                                    : `${date.getMonth()+1}/${date.getDate()}`;
-                            }}
-                            stroke="#94a3b8"
-                            fontSize={10}
-                            tickLine={false}
-                            axisLine={false}
-                            minTickGap={40}
-                        />
-                        <YAxis hide={true} domain={['auto', 'auto']} />
-                        <RechartsTooltip 
-                            cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '4 4' }}
-                            contentStyle={{ 
-                                backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff', 
-                                borderColor: '#334155', 
-                                color: theme === 'dark' ? '#f1f5f9' : '#0f172a',
-                                borderRadius: '8px',
-                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                            }}
-                            labelFormatter={(ts) => new Date(parseInt(ts)).toLocaleString()}
-                            formatter={(value: number) => [
-                                hideBalance ? '******' : `$${value.toLocaleString()}`, 
-                                'Equity'
-                            ]}
-                        />
-                        <Area 
-                            type="monotone" 
-                            dataKey="totalEq" 
-                            stroke={chartColor} 
-                            strokeWidth={2} 
-                            fillOpacity={1} 
-                            fill="url(#colorEq)" 
-                            animationDuration={1000}
-                        />
-                    </AreaChart>
-                </ResponsiveContainer>
+          </div>
+          <div className="text-3xl font-bold text-text">
+            {hideBalance ? '******' : (
+                <>
+                {unit === 'USD' && '$'}
+                {unit === 'CNY' && '¥'}
+                {unit === 'BTC' && '₿'}
+                {displayBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: unit === 'BTC' ? 6 : 2 })}
+                </>
             )}
+          </div>
+          <div className={`mt-2 text-xs flex items-center ${percentageChange >= 0 ? 'text-success' : 'text-danger'}`}>
+            <TrendingUp size={14} className="mr-1" /> {formatPct(percentageChange)} ({period})
+          </div>
+          {unit !== 'USD' && (
+              <div className="mt-1 text-[10px] text-muted">
+                  {t.rate}: 1 USD ≈ {service.exchangeRates[unit]} {unit}
+              </div>
+          )}
+        </div>
+
+        {/* Asset Trend Chart */}
+        <div className="bg-surface rounded-xl border border-border shadow-lg p-6 transition-colors col-span-1 sm:col-span-1 lg:col-span-2">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <Activity size={18} className="text-primary"/> 
+                    {t.assetTrend}
+                </h3>
+                <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-lg border border-border">
+                    {(['1D', '1W', '1M', '3M'] as TimePeriod[]).map((p) => (
+                        <button
+                            key={p}
+                            onClick={() => setPeriod(p)}
+                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                period === p 
+                                ? 'bg-primary text-white shadow-sm' 
+                                : 'text-muted hover:text-text'
+                            }`}
+                        >
+                            {p}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            
+            <div className="h-[160px] sm:h-[200px] w-full">
+                {assetHistory.length < 2 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-muted text-sm border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-lg">
+                        <p>Not enough history data collected yet.</p>
+                    </div>
+                ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={assetHistory}>
+                            <defs>
+                                <linearGradient id="colorEq" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? "#334155" : "#e2e8f0"} vertical={false} />
+                            <XAxis 
+                                dataKey="ts" 
+                                tickFormatter={(ts) => {
+                                    const date = new Date(parseInt(ts));
+                                    return period === '1D' ? date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : date.toLocaleDateString();
+                                }}
+                                stroke="#94a3b8"
+                                fontSize={10}
+                                minTickGap={30}
+                            />
+                            <YAxis 
+                                stroke="#94a3b8"
+                                fontSize={10}
+                                domain={['auto', 'auto']}
+                                tickFormatter={(val) => hideBalance ? '***' : `$${val/1000}k`}
+                            />
+                            <RechartsTooltip 
+                                contentStyle={{ backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff', borderColor: '#334155', color: theme === 'dark' ? '#f1f5f9' : '#0f172a' }}
+                                labelFormatter={(ts) => new Date(parseInt(ts)).toLocaleString()}
+                                formatter={(value: number) => [hideBalance ? '******' : `$${value.toLocaleString()}`, 'Equity']}
+                            />
+                            <Area type="monotone" dataKey="totalEq" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorEq)" />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                )}
+            </div>
         </div>
       </div>
 
+      {/* Positions Section */}
       <div className="bg-surface rounded-xl border border-border shadow-lg overflow-hidden transition-colors">
         <div className="p-4 border-b border-border">
             <h3 className="font-semibold text-lg">{t.positions}</h3>
@@ -378,14 +308,14 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, colo
                 </thead>
                 <tbody className="divide-y divide-border">
                     {positions.length === 0 ? (
-                        <tr><td colSpan={6} className="p-8 text-center text-muted">No open positions</td></tr>
+                        <tr><td colSpan={6} className="p-6 text-center text-muted">No open positions</td></tr>
                     ) : positions.map((pos) => {
                         let sizeDisplay = '';
                         let suffix = '';
                         
                         if (pos.instId.includes('SWAP') && pos.ctVal) {
                              sizeDisplay = `${(parseFloat(pos.pos) * parseFloat(pos.ctVal)).toFixed(4)}`;
-                             suffix = pos.instId.split('-')[0];
+                             suffix = pos.instId.split('-')[0]; // e.g. BTC
                         } else {
                              sizeDisplay = formatAmount(pos.pos);
                              suffix = pos.ccy;
@@ -417,7 +347,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, colo
                                 <td className="px-6 py-4 text-right">
                                     <button 
                                         onClick={() => setExpandedPosition(expandedPosition === pos.instId ? null : pos.instId)}
-                                        className="text-primary hover:text-blue-400 flex items-center justify-end gap-1 ml-auto text-xs bg-slate-200 dark:bg-slate-800 px-3 py-1.5 rounded-md transition-colors"
+                                        className="text-primary hover:text-blue-400 flex items-center justify-end gap-1 ml-auto text-xs bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded"
                                     >
                                         {t.viewChart} {expandedPosition === pos.instId ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
                                     </button>
@@ -427,6 +357,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, colo
                                 <tr>
                                     <td colSpan={6} className="p-4 bg-slate-50 dark:bg-slate-900/50 h-[450px]">
                                         <div className="w-full h-full rounded-lg overflow-hidden border border-border bg-surface">
+                                            {/* Using custom TradingChart with Algo capabilities */}
                                             <TradingChart 
                                                 instId={pos.instId} 
                                                 theme={theme} 
@@ -447,14 +378,16 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, colo
             </table>
         </div>
       </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Asset List */}
         <div className="bg-surface rounded-xl border border-border shadow-lg overflow-hidden transition-colors">
           <div className="p-4 border-b border-border flex justify-between items-center">
             <h3 className="font-semibold text-lg">{t.myAssets}</h3>
           </div>
           <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
             <table className="w-full text-left">
-              <thead className="bg-slate-100 dark:bg-slate-900/50 text-muted text-xs uppercase sticky top-0 backdrop-blur-md z-10">
+              <thead className="bg-slate-100 dark:bg-slate-900/50 text-muted text-xs uppercase sticky top-0 backdrop-blur-md">
                 <tr>
                   <th className="px-6 py-3">{t.symbol}</th>
                   <th className="px-6 py-3 text-right">{t.balance}</th>
@@ -483,6 +416,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, colo
           </div>
         </div>
 
+        {/* Portfolio Pie Chart */}
         <div className="bg-surface rounded-xl border border-border shadow-lg p-6 flex flex-col transition-colors">
           <h3 className="font-semibold text-lg mb-4">{t.allocation}</h3>
           <div className="flex-1 min-h-[300px]">

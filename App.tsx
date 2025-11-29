@@ -37,58 +37,30 @@ const App: React.FC = () => {
 
   const t = translations[config.language] || translations.en;
 
-  // 1. 初始化服务 & 主题 & 颜色模式
   useEffect(() => {
     setService(new OKXService(config));
     localStorage.setItem('okx_config', JSON.stringify(config));
     
     const root = document.documentElement;
-    
-    // 设置亮/暗主题
     if (config.theme === 'light') {
         root.classList.remove('dark');
     } else {
         root.classList.add('dark');
     }
-
-    // 设置红绿/红蓝模式 CSS 变量
-    if (config.colorMode === 'reverse') {
-        // 中国模式: 红涨绿跌
-        root.style.setProperty('--color-success', '#ef4444'); 
-        root.style.setProperty('--color-danger', '#10b981');  
-    } else {
-        // 国际模式: 绿涨红跌 (默认)
-        root.style.setProperty('--color-success', '#10b981'); 
-        root.style.setProperty('--color-danger', '#ef4444');  
-    }
   }, [config]);
 
-  // 2. 启动时的 GitHub 同步
   useEffect(() => {
       if (config.githubToken) {
           service.syncHistoryWithGitHub()
               .then(() => {
                   addToast(t.syncSuccess, 'success');
-                  refreshData(); 
+                  refreshData();
               })
               .catch(e => {
                   console.warn("Startup sync failed", e);
               });
       }
   }, [service]);
-
-  // 3. 新增：每15分钟自动同步一次 GitHub (云端同步)
-  useEffect(() => {
-    if (!config.githubToken) return;
-    
-    const syncInterval = setInterval(() => {
-        service.syncHistoryWithGitHub()
-            .then(() => console.log('Auto-synced history to GitHub'))
-            .catch(e => console.warn('Auto-sync failed', e));
-    }, 15 * 60 * 1000); // 15分钟
-
-    return () => clearInterval(syncInterval);
-  }, [config.githubToken, service]);
 
   const addToast = (text: string, type: 'success' | 'error' | 'info') => {
     const id = Date.now().toString();
@@ -123,8 +95,7 @@ const App: React.FC = () => {
       checkAlerts(data);
       const newRates = await service.fetchExchangeRates();
       setRates(newRates);
-    } catch (error) {
-    }
+    } catch (error) {}
   }, [service]);
 
   useEffect(() => {
@@ -167,15 +138,7 @@ const App: React.FC = () => {
       case 'dashboard':
         return (
           <div className="p-4 md:p-0 flex-1">
-            <Dashboard 
-                balances={balances} 
-                service={service} 
-                t={t} 
-                theme={config.theme}
-                colorMode={config.colorMode} // 传递颜色模式
-                onAction={addToast} 
-                refreshInterval={config.refreshInterval} 
-            />
+            <Dashboard balances={balances} service={service} t={t} theme={config.theme} onAction={addToast} refreshInterval={config.refreshInterval} />
           </div>
         );
       case 'trade':
@@ -187,7 +150,8 @@ const App: React.FC = () => {
       case 'history':
         return (
           <div className="p-4 md:p-0 flex-1">
-            <HistoryAnalysis service={service} t={t} />
+            {/* Updated: Passing colorMode to HistoryAnalysis */}
+            <HistoryAnalysis service={service} t={t} colorMode={config.colorMode} />
           </div>
         );
       case 'settings':
@@ -209,12 +173,11 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className={`flex flex-col md:flex-row h-screen-safe overflow-hidden transition-colors duration-300 ${config.theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-background text-text'}`}>
+    <div className={`flex flex-col md:flex-row h-screen-safe overflow-hidden transition-colors duration-300 pt-safe pb-safe ${config.theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-background text-text'}`}>
       
-      {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 bg-surface border-b border-slate-700 z-30 shrink-0">
           <div className="flex items-center gap-2 font-bold text-lg">
-             <div className="w-8 h-8 bg-gradient-to-tr from-primary to-blue-400 rounded-lg flex items-center justify-center text-white">T</div>
+             <div className="w-8 h-8 bg-gradient-to-tr from-primary to-blue-400 rounded-lg flex items-center justify-center text-white">O</div>
              TraderPro
           </div>
           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-text">
@@ -222,7 +185,6 @@ const App: React.FC = () => {
           </button>
       </div>
 
-      {/* Sidebar */}
       <aside 
         className={`
             fixed md:relative z-20 shrink-0 flex flex-col h-full
@@ -230,12 +192,13 @@ const App: React.FC = () => {
             ${config.theme === 'light' ? 'bg-white border-slate-200' : 'bg-surface border-slate-700'}
             ${isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'} 
             ${isSidebarOpen ? 'md:w-64' : 'md:w-20'}
+            pb-safe md:pb-0
         `}
       >
         <div className="flex flex-col h-full overflow-y-auto custom-scrollbar">
             <div className={`flex items-center gap-3 px-4 py-6 mb-2 ${!isSidebarOpen ? 'justify-center' : ''}`}>
                 <div className="w-10 h-10 min-w-[2.5rem] bg-gradient-to-tr from-primary to-blue-400 rounded-lg flex items-center justify-center font-bold text-white text-xl shadow-lg shrink-0">
-                    T
+                    O
                 </div>
                 <h1 className={`text-xl font-bold tracking-tight whitespace-nowrap overflow-hidden transition-all duration-300 ${!isSidebarOpen ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
                     Trader<span className="text-primary">Pro</span>
@@ -254,6 +217,7 @@ const App: React.FC = () => {
                     <button 
                         onClick={toggleTheme}
                         className={`flex-1 flex items-center justify-center gap-2 p-2 rounded-lg border text-xs font-medium transition-colors ${config.theme === 'light' ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200' : 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700'}`}
+                        title="Toggle Theme"
                     >
                         {config.theme === 'dark' ? <Moon size={16}/> : <Sun size={16}/>}
                         {isSidebarOpen && (config.theme === 'dark' ? 'Dark' : 'Light')}
@@ -261,6 +225,7 @@ const App: React.FC = () => {
                     <button 
                         onClick={toggleLang}
                         className={`flex-1 flex items-center justify-center gap-2 p-2 rounded-lg border text-xs font-medium transition-colors ${config.theme === 'light' ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200' : 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700'}`}
+                        title="Switch Language"
                     >
                         <Languages size={16}/>
                         {isSidebarOpen && config.language.toUpperCase()}
