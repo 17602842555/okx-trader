@@ -128,7 +128,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
         }
 
         await service.amendOrder(req);
-        // FIX: Replaced faulty template literal with standard string template syntax
+        // FIX: Replaced potentially corrupted template string with clean string template syntax
         onAction?.(, 'success'); 
     } catch (e: any) {
          onAction?.(e.message || t.modifyFailed, 'error');

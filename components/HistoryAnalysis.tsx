@@ -34,7 +34,6 @@ const CalendarMonth: React.FC<{ date: Date, dailyPnlMap: Record<string, number>,
     const colorDown = isReverse ? 'text-success' : 'text-danger';
     const bgUp = isReverse ? 'bg-red-500/10 border-red-500/30' : 'bg-emerald-500/10 border-emerald-500/30';
     const bgDown = isReverse ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30';
-    // Req #1: Style for Zero PnL days
     const bgZero = 'bg-slate-500/10 border-slate-500/10 text-slate-400'; 
 
     return (
@@ -167,7 +166,6 @@ const HistoryAnalysis: React.FC<HistoryProps> = ({ service, t, colorMode = 'stan
          </div>
          {/* 优化: 使用 overflow-x-auto 和 flex-shrink-0 确保三个月在小屏上并排显示，符合移动端设计 */}
          <div className="flex gap-6 lg:flex-row overflow-x-auto pb-4 lg:pb-0 custom-scrollbar">
-            {/* CalendarMonth components now automatically apply flex-shrink-0 via the component definition to ensure side-by-side */}
             <CalendarMonth date={month1} dailyPnlMap={dailyPnlMap} t={t} isReverse={isReverse} />
             <CalendarMonth date={month2} dailyPnlMap={dailyPnlMap} t={t} isReverse={isReverse} />
             <CalendarMonth date={month3} dailyPnlMap={dailyPnlMap} t={t} isReverse={isReverse} />
