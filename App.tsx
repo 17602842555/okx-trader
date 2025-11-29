@@ -150,7 +150,6 @@ const App: React.FC = () => {
       case 'history':
         return (
           <div className="p-4 md:p-0 flex-1">
-            {/* Updated: Passing colorMode to HistoryAnalysis */}
             <HistoryAnalysis service={service} t={t} colorMode={config.colorMode} />
           </div>
         );
