@@ -72,13 +72,50 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
   }, [unit]);
 
   // --- Data Processing for Chart & Stats ---
+  // FIX: Implement 10-minute sampling interval while keeping the last point real-time
   const processedHistory = useMemo(() => {
-      return assetHistory.map(item => ({
+      if (assetHistory.length === 0) return [];
+
+      // 1. Map to standard format and sort by time
+      const raw = assetHistory.map(item => ({
           ...item,
           tsNum: parseInt(item.ts), 
-          // FIX: Apply exchange rate to chart values
           val: parseFloat(item.totalEq) * rate
-      }));
+      })).sort((a, b) => a.tsNum - b.tsNum);
+
+      // 2. Filter logic
+      const interval = 10 * 60 * 1000; // 10 minutes in ms
+      const filtered = [];
+      let lastTs = 0;
+
+      raw.forEach((item, index) => {
+          const isLast = index === raw.length - 1;
+          
+          // Always include the first point
+          if (index === 0) {
+              filtered.push(item);
+              lastTs = item.tsNum;
+              return;
+          }
+
+          // Always include the last point (Real-time status)
+          if (isLast) {
+              // Avoid duplicates if the last point is too close to the last sampled point
+              // but strictly speaking, user wants the last point.
+              if (item.tsNum > lastTs) {
+                  filtered.push(item);
+              }
+              return;
+          }
+
+          // Sample intermediate points every 10 minutes
+          if (item.tsNum - lastTs >= interval) {
+              filtered.push(item);
+              lastTs = item.tsNum;
+          }
+      });
+
+      return filtered;
   }, [assetHistory, rate]);
 
   const { minPoint, maxPoint, periodPnL, periodPnLPct } = useMemo(() => {
@@ -107,9 +144,9 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
       };
   }, [processedHistory]);
 
-  // FIX: Dynamic Color based on Trend (Green for Up, Red for Down)
+  // Dynamic Color based on Trend
   const isTrendUp = periodPnL >= 0;
-  const trendColor = isTrendUp ? '#10b981' : '#ef4444'; // Emerald-500 : Red-500
+  const trendColor = isTrendUp ? '#10b981' : '#ef4444';
 
   const totalBalanceUsd = useMemo(() => {
     return balances.reduce((acc, curr) => acc + parseFloat(curr.eqUsd), 0);
@@ -124,7 +161,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
       .filter(b => parseFloat(b.eqUsd) > 10)
       .map(b => ({
         name: b.ccy,
-        value: parseFloat(b.eqUsd) * rate // FIX: Pie chart values in selected unit
+        value: parseFloat(b.eqUsd) * rate
       }))
       .sort((a, b) => b.value - a.value);
   }, [balances, rate]);
@@ -262,7 +299,7 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                 </div>
             </div>
 
-            {/* 2. Period PnL (Dynamic Title & Value & Unit) */}
+            {/* 2. Period PnL */}
             <div className="flex flex-col justify-center pt-4 md:pt-0 md:border-l md:border-border md:pl-6">
                  <div className="flex items-center space-x-2 text-muted mb-1">
                     <DollarSign size={18} />
@@ -277,13 +314,12 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                         </>
                     )}
                  </div>
-                 {/* FIX: Localized text */}
                  <div className="text-xs text-muted mt-1">
                     {period === '1D' ? '包含今日已实现 & 未实现盈亏' : `${period} 内资产净值变化`}
                  </div>
             </div>
 
-            {/* 3. Account Status (Localized) */}
+            {/* 3. Account Status */}
             <div className="flex flex-col justify-center pt-4 md:pt-0 md:border-l md:border-border md:pl-6">
                 <div className="flex items-center space-x-2 text-muted mb-1">
                     <ShieldCheck size={18} />
@@ -293,7 +329,6 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                     <div className="px-3 py-1 bg-success/10 text-success rounded-full text-xs font-bold uppercase tracking-wide border border-success/20">
                         安全
                     </div>
-                    {/* FIX: Localized text */}
                     <span className="text-xs text-muted">保证金风险: 低</span>
                 </div>
             </div>
@@ -334,7 +369,6 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                         <AreaChart data={processedHistory}>
                             <defs>
                                 <linearGradient id="colorEq" x1="0" y1="0" x2="0" y2="1">
-                                    {/* FIX: Dynamic Gradient Color */}
                                     <stop offset="5%" stopColor={trendColor} stopOpacity={0.2}/>
                                     <stop offset="95%" stopColor={trendColor} stopOpacity={0}/>
                                 </linearGradient>
@@ -368,7 +402,6 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                                 labelFormatter={(ts) => new Date(ts).toLocaleString()}
                                 formatter={(value: number) => [hideBalance ? '******' : `${currencySymbol}${formatAmount(value)}`, '总权益']}
                             />
-                            {/* FIX: type="linear" for sharp lines, dynamic stroke color */}
                             <Area type="linear" dataKey="totalEq" stroke={trendColor} strokeWidth={2} fillOpacity={1} fill="url(#colorEq)" />
                             
                             {/* Max Point Marker */}
