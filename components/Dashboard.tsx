@@ -161,9 +161,8 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
 
   return (
     <div className="space-y-6 animate-fadeIn pb-10">
-      {/* Responsive Grid: 1 col on mobile portrait, 2 cols on mobile landscape/tablet, 3 on desktop */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        <div className="bg-surface p-6 rounded-xl border border-border shadow-lg transition-colors">
+        <div className="bg-surface p-6 rounded-xl border border-border shadow-lg transition-colors min-h-[150px] flex flex-col justify-center">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-3 text-muted">
                 <Wallet size={20} />
@@ -220,76 +219,92 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
               </div>
           )}
         </div>
+        
+        <div className="bg-surface p-6 rounded-xl border border-border shadow-lg transition-colors min-h-[150px] flex flex-col justify-center">
+          <div className="flex items-center space-x-3 mb-2 text-muted">
+            <DollarSign size={20} />
+            <span className="text-sm font-medium">{t.dailyPnl}</span>
+          </div>
+          <div className="text-3xl font-bold text-success">
+            {hideBalance ? '******' : '--'}
+          </div>
+        </div>
 
-        {/* Asset Trend Chart */}
-        <div className="bg-surface rounded-xl border border-border shadow-lg p-6 transition-colors col-span-1 sm:col-span-1 lg:col-span-2">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <Activity size={18} className="text-primary"/> 
-                    {t.assetTrend}
-                </h3>
-                <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-lg border border-border">
-                    {(['1D', '1W', '1M', '3M'] as TimePeriod[]).map((p) => (
-                        <button
-                            key={p}
-                            onClick={() => setPeriod(p)}
-                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                                period === p 
-                                ? 'bg-primary text-white shadow-sm' 
-                                : 'text-muted hover:text-text'
-                            }`}
-                        >
-                            {p}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            
-            <div className="h-[160px] sm:h-[200px] w-full">
-                {assetHistory.length < 2 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-muted text-sm border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-lg">
-                        <p>Not enough history data collected yet.</p>
-                    </div>
-                ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={assetHistory}>
-                            <defs>
-                                <linearGradient id="colorEq" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? "#334155" : "#e2e8f0"} vertical={false} />
-                            <XAxis 
-                                dataKey="ts" 
-                                tickFormatter={(ts) => {
-                                    const date = new Date(parseInt(ts));
-                                    return period === '1D' ? date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : date.toLocaleDateString();
-                                }}
-                                stroke="#94a3b8"
-                                fontSize={10}
-                                minTickGap={30}
-                            />
-                            <YAxis 
-                                stroke="#94a3b8"
-                                fontSize={10}
-                                domain={['auto', 'auto']}
-                                tickFormatter={(val) => hideBalance ? '***' : `$${val/1000}k`}
-                            />
-                            <RechartsTooltip 
-                                contentStyle={{ backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff', borderColor: '#334155', color: theme === 'dark' ? '#f1f5f9' : '#0f172a' }}
-                                labelFormatter={(ts) => new Date(parseInt(ts)).toLocaleString()}
-                                formatter={(value: number) => [hideBalance ? '******' : `$${value.toLocaleString()}`, 'Equity']}
-                            />
-                            <Area type="monotone" dataKey="totalEq" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorEq)" />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                )}
-            </div>
+        <div className="bg-surface p-6 rounded-xl border border-border shadow-lg flex flex-col justify-center items-start transition-colors min-h-[150px]">
+             <div className="text-muted text-sm mb-2">{t.accountStatus}</div>
+             <div className="px-3 py-1 bg-success/20 text-success rounded-full text-xs font-bold uppercase tracking-wide">
+                Active
+             </div>
         </div>
       </div>
 
-      {/* Positions Section */}
+      <div className="bg-surface rounded-xl border border-border shadow-lg p-6 transition-colors">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Activity size={18} className="text-primary"/> 
+                {t.assetTrend}
+            </h3>
+            <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-lg border border-border">
+                {(['1D', '1W', '1M', '3M'] as TimePeriod[]).map((p) => (
+                    <button
+                        key={p}
+                        onClick={() => setPeriod(p)}
+                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                            period === p 
+                            ? 'bg-primary text-white shadow-sm' 
+                            : 'text-muted hover:text-text'
+                        }`}
+                    >
+                        {p}
+                    </button>
+                ))}
+            </div>
+        </div>
+        
+        <div className="h-[250px] w-full">
+            {assetHistory.length < 2 ? (
+                <div className="h-full flex flex-col items-center justify-center text-muted text-sm border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-lg">
+                    <p>Not enough history data collected yet.</p>
+                    <p>Keep the app open to record asset trends.</p>
+                </div>
+            ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={assetHistory}>
+                        <defs>
+                            <linearGradient id="colorEq" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? "#334155" : "#e2e8f0"} vertical={false} />
+                        <XAxis 
+                            dataKey="ts" 
+                            tickFormatter={(ts) => {
+                                const date = new Date(parseInt(ts));
+                                return period === '1D' ? date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : date.toLocaleDateString();
+                            }}
+                            stroke="#94a3b8"
+                            fontSize={10}
+                            minTickGap={30}
+                        />
+                        <YAxis 
+                            stroke="#94a3b8"
+                            fontSize={10}
+                            domain={['auto', 'auto']}
+                            tickFormatter={(val) => hideBalance ? '***' : `$${val/1000}k`}
+                        />
+                        <RechartsTooltip 
+                            contentStyle={{ backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff', borderColor: '#334155', color: theme === 'dark' ? '#f1f5f9' : '#0f172a' }}
+                            labelFormatter={(ts) => new Date(parseInt(ts)).toLocaleString()}
+                            formatter={(value: number) => [hideBalance ? '******' : `$${value.toLocaleString()}`, 'Equity']}
+                        />
+                        <Area type="monotone" dataKey="totalEq" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorEq)" />
+                    </AreaChart>
+                </ResponsiveContainer>
+            )}
+        </div>
+      </div>
+
       <div className="bg-surface rounded-xl border border-border shadow-lg overflow-hidden transition-colors">
         <div className="p-4 border-b border-border">
             <h3 className="font-semibold text-lg">{t.positions}</h3>
@@ -324,20 +339,20 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                         return (
                         <React.Fragment key={pos.instId}>
                             <tr className="hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
-                                <td className="px-6 py-4 font-medium flex items-center gap-2">
+                                <td className="px-6 py-4 font-medium flex items-center gap-2 whitespace-nowrap">
                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${pos.instId.includes('SWAP') ? 'bg-orange-500/20 text-orange-400' : 'bg-blue-500/20 text-blue-400'}`}>
                                         {pos.instId.includes('SWAP') ? t.contract : t.spot}
                                     </span>
                                     {pos.instId}
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4 whitespace-nowrap">
                                     <span className={`uppercase font-bold text-xs px-2 py-1 rounded ${pos.posSide === 'short' ? 'bg-danger/20 text-danger' : 'bg-success/20 text-success'}`}>
                                         {pos.posSide}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 font-mono">{sizeDisplay} <span className="text-muted text-xs">{suffix}</span></td>
-                                <td className="px-6 py-4 text-right font-mono">{formatPrice(pos.avgPx)}</td>
-                                <td className={`px-6 py-4 text-right font-mono font-bold ${parseFloat(pos.upl) >= 0 ? 'text-success' : 'text-danger'}`}>
+                                <td className="px-6 py-4 font-mono whitespace-nowrap">{sizeDisplay} <span className="text-muted text-xs">{suffix}</span></td>
+                                <td className="px-6 py-4 text-right font-mono whitespace-nowrap">{formatPrice(pos.avgPx)}</td>
+                                <td className={`px-6 py-4 text-right font-mono font-bold whitespace-nowrap ${parseFloat(pos.upl) >= 0 ? 'text-success' : 'text-danger'}`}>
                                     {hideBalance ? '****' : (
                                         <>
                                         {parseFloat(pos.upl) > 0 ? '+' : ''}{formatPrice(pos.upl)}
@@ -357,7 +372,6 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
                                 <tr>
                                     <td colSpan={6} className="p-4 bg-slate-50 dark:bg-slate-900/50 h-[450px]">
                                         <div className="w-full h-full rounded-lg overflow-hidden border border-border bg-surface">
-                                            {/* Using custom TradingChart with Algo capabilities */}
                                             <TradingChart 
                                                 instId={pos.instId} 
                                                 theme={theme} 
@@ -380,7 +394,6 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Asset List */}
         <div className="bg-surface rounded-xl border border-border shadow-lg overflow-hidden transition-colors">
           <div className="p-4 border-b border-border flex justify-between items-center">
             <h3 className="font-semibold text-lg">{t.myAssets}</h3>
@@ -416,7 +429,6 @@ const Dashboard: React.FC<DashboardProps> = ({ balances, service, t, theme, onAc
           </div>
         </div>
 
-        {/* Portfolio Pie Chart */}
         <div className="bg-surface rounded-xl border border-border shadow-lg p-6 flex flex-col transition-colors">
           <h3 className="font-semibold text-lg mb-4">{t.allocation}</h3>
           <div className="flex-1 min-h-[300px]">
